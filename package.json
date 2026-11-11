@@ -1,0 +1,23 @@
+{
+  "name": "modelbrain-obsidian",
+  "version": "0.1.0",
+  "description": "ModelBrain plugin for Obsidian: search your vault and saved memories, and save selections as memories, through the ModelBrain desktop app.",
+  "private": true,
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "build": "tsc --noEmit && node esbuild.config.mjs production",
+    "dev": "node esbuild.config.mjs",
+    "test": "node esbuild.config.mjs test && node --test test-build/*.cjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "esbuild": "^0.21.5",
+    "eslint": "^9.39.5",
+    "eslint-plugin-obsidianmd": "^0.5.1",
+    "modelbrain-mcp": "0.1.4",
+    "obsidian": "^1.5.7",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^8.72.2"
+  }
+}

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { isStructureEntry, matchVault, memoryText, parseConnectorList, relatedQuery, snippet, vaultPathForHit } from "../src/format";
-import { helperFileName, installDirs } from "../src/paths";
+import { helperFileName, helperIn, installDirs, locateInstall, Runner } from "../src/paths";
 
 const listOutput = [
   "Connectors registered against /Users/me/Library/Application Support/ModelBrain/data:",
@@ -86,4 +86,29 @@ test("install locations per platform", () => {
   assert.deepEqual(installDirs("freebsd", "/home/me", {}), []);
   assert.equal(helperFileName("mcp_server", "win32"), "mcp_server.exe");
   assert.equal(helperFileName("connector_sync", "darwin"), "connector_sync");
+});
+
+test("locateInstall takes the first location whose program is there to run", async () => {
+  const asked: string[] = [];
+  const run: Runner = async (file) => {
+    asked.push(file);
+    return file.startsWith("/b/") ? { missing: false, stdout: "  notes  ->  /v" } : { missing: true, stdout: "" };
+  };
+  const found = await locateInstall(run, "", ["/a", "/b", "/c"]);
+  assert.deepEqual(found, { dir: "/b", connectorList: "  notes  ->  /v" });
+  assert.equal(asked.length, 2);
+  assert.equal(helperIn("/b", "mcp_server"), "/b/" + helperFileName("mcp_server"));
+});
+
+test("locateInstall reports nothing when no location has the program, and honours the override", async () => {
+  const none: Runner = async () => ({ missing: true, stdout: "" });
+  assert.equal(await locateInstall(none, "", ["/a", "/b"]), null);
+  const asked: string[] = [];
+  const any: Runner = async (file) => {
+    asked.push(file);
+    return { missing: false, stdout: "" };
+  };
+  const found = await locateInstall(any, "  /custom  ", ["/a"]);
+  assert.equal(found?.dir, "/custom");
+  assert.equal(asked.length, 1);
 });

@@ -38,7 +38,7 @@ The first pass over a large vault takes a while. After that only changed notes a
 
 Obsidian asks plugins to state these plainly.
 
-- **Programs outside the vault.** The plugin starts two helper programs that the ModelBrain app installed: `mcp_server`, which passes requests to ModelBrain, and `connector_sync list`, which reads the list of folders ModelBrain is connected to. It needs these because ModelBrain is a separate app. It does not read or write any other file outside your vault.
+- **Programs outside the vault.** The plugin starts two helper programs that the ModelBrain app installed: `mcp_server`, which passes requests to ModelBrain, and `connector_sync list`, which reads the list of folders ModelBrain is connected to. It needs these because ModelBrain is a separate app. The plugin itself does not read or write any file outside your vault.
 - **Network.** The plugin makes no network requests. It talks to ModelBrain on the same computer through that helper program.
 - **What it sends to ModelBrain.** The text you type into the search box; the text you select when you run "Remember selection", with the note's path; and, for related memories, the note's title and about its first 400 characters.
 - **Clipboard.** Not used.

@@ -106,11 +106,11 @@ export class ModelBrainSettingTab extends PluginSettingTab {
   }
 
   private async describeStatus(): Promise<string> {
-    if (!this.plugin.helperPath()) {
+    if (!(await this.plugin.installed())) {
       return "The ModelBrain desktop app was not found. Install it from modelbrain.net, start it once, then choose Check again.";
     }
     try {
-      const ping = await this.plugin.client().callTool<PingAnswer>("ping", {}, 15000);
+      const ping = await (await this.plugin.client()).callTool<PingAnswer>("ping", {}, 15000);
       const version = ping.version ? `version ${ping.version}` : "version unknown";
       return ping.degraded ? `Connected, ${version}. ModelBrain reports a problem: open its menu for details.` : `Connected, ${version}.`;
     } catch (err) {

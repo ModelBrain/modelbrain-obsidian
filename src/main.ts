@@ -1,7 +1,7 @@
 import { Editor, FileSystemAdapter, MarkdownFileInfo, MarkdownView, Menu, Notice, Plugin, TFile, WorkspaceLeaf } from "obsidian";
 import { execFile } from "child_process";
 import { McpClient } from "./client";
-import { findHelper } from "./paths";
+import { helperIn, Install, locateInstall, RunResult } from "./paths";
 import { matchVault, memoryText, parseConnectorList, relatedQuery, VaultMatch } from "./format";
 import { DEFAULT_SETTINGS, ModelBrainSettings, ModelBrainSettingTab } from "./settings";
 import { SearchView, VIEW_TYPE } from "./view";
@@ -14,6 +14,7 @@ export default class ModelBrainPlugin extends Plugin {
   settings: ModelBrainSettings = DEFAULT_SETTINGS;
   private mcp: McpClient | null = null;
   private cachedMatch: { at: number; value: VaultMatch | null } | null = null;
+  private install: Install | null = null;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -75,16 +76,32 @@ export default class ModelBrainPlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
-  /** Path of the installed helper that talks to ModelBrain, or null. */
-  helperPath(): string | null {
-    return findHelper("mcp_server", this.settings.installDir);
+  /**
+   * Where the ModelBrain app is installed, or null. A found location is
+   * remembered until the settings change; `fresh` asks again.
+   */
+  async locate(fresh = false): Promise<Install | null> {
+    if (this.install && !fresh) return this.install;
+    const run = (file: string, args: string[]) =>
+      new Promise<RunResult>((resolve) => {
+        execFile(file, args, { timeout: 10000 }, (err, stdout) => {
+          const code = err ? (err as NodeJS.ErrnoException).code : undefined;
+          resolve({ missing: code === "ENOENT" || code === "EACCES" || code === "ENOTDIR", stdout: err ? "" : String(stdout) });
+        });
+      });
+    this.install = await locateInstall(run, this.settings.installDir);
+    return this.install;
   }
 
-  client(): McpClient {
+  async installed(): Promise<boolean> {
+    return (await this.locate()) !== null;
+  }
+
+  async client(): Promise<McpClient> {
     if (!this.mcp) {
-      const helper = this.helperPath();
-      if (!helper) throw new Error("The ModelBrain desktop app was not found on this computer.");
-      this.mcp = new McpClient(helper, [], this.manifest.version);
+      const install = await this.locate();
+      if (!install) throw new Error("The ModelBrain desktop app was not found on this computer.");
+      this.mcp ??= new McpClient(helperIn(install.dir, "mcp_server"), [], this.manifest.version);
     }
     return this.mcp;
   }
@@ -93,6 +110,7 @@ export default class ModelBrainPlugin extends Plugin {
     this.mcp?.stop();
     this.mcp = null;
     this.cachedMatch = null;
+    this.install = null;
   }
 
   vaultPath(): string | null {
@@ -107,13 +125,10 @@ export default class ModelBrainPlugin extends Plugin {
   async vaultMatch(fresh = false): Promise<VaultMatch | null> {
     if (!fresh && this.cachedMatch && Date.now() - this.cachedMatch.at < 60000) return this.cachedMatch.value;
     const vaultPath = this.vaultPath();
-    const lister = findHelper("connector_sync", this.settings.installDir);
     let value: VaultMatch | null = null;
-    if (vaultPath && lister) {
-      const output = await new Promise<string>((resolve) => {
-        execFile(lister, ["list"], { timeout: 10000 }, (err, stdout) => resolve(err ? "" : String(stdout)));
-      });
-      value = matchVault(parseConnectorList(output), vaultPath, process.platform !== "linux");
+    const install = vaultPath ? await this.locate(true) : null;
+    if (vaultPath && install) {
+      value = matchVault(parseConnectorList(install.connectorList), vaultPath, process.platform !== "linux");
     }
     this.cachedMatch = { at: Date.now(), value };
     return value;
@@ -137,7 +152,7 @@ export default class ModelBrainPlugin extends Plugin {
     const selection = editor.getSelection();
     if (!selection.trim()) return;
     try {
-      const answer = await this.client().callTool<RememberAnswer>("remember", {
+      const answer = await (await this.client()).callTool<RememberAnswer>("remember", {
         text: memoryText(selection, file ? file.path : null),
         tags: ["obsidian"],
         speaker: "user",

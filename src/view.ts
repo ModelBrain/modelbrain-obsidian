@@ -65,7 +65,7 @@ export class SearchView extends ItemView {
     });
 
     this.resultsEl = root.createDiv({ cls: "modelbrain-results" });
-    this.showHint();
+    void this.showHint();
   }
 
   async onClose(): Promise<void> {
@@ -76,9 +76,12 @@ export class SearchView extends ItemView {
     this.inputEl?.focus();
   }
 
-  private showHint(): void {
+  private async showHint(): Promise<void> {
+    const run = ++this.runId;
     this.resultsEl.empty();
-    if (!this.plugin.helperPath()) {
+    const installed = await this.plugin.installed();
+    if (run !== this.runId) return;
+    if (!installed) {
       this.showNotInstalled();
       return;
     }
@@ -105,15 +108,18 @@ export class SearchView extends ItemView {
     if (!label) this.inputEl.value = text;
     const run = ++this.runId;
     this.resultsEl.empty();
-    if (!this.plugin.helperPath()) {
+    this.resultsEl.createEl("p", { cls: "modelbrain-muted", text: "Searching…" });
+    const installed = await this.plugin.installed();
+    if (run !== this.runId) return;
+    if (!installed) {
+      this.resultsEl.empty();
       this.showNotInstalled();
       return;
     }
-    this.resultsEl.createEl("p", { cls: "modelbrain-muted", text: "Searching…" });
 
     let answer: RecallAnswer;
     try {
-      answer = await this.plugin.client().callTool<RecallAnswer>("recall", {
+      answer = await (await this.plugin.client()).callTool<RecallAnswer>("recall", {
         query: text,
         k: this.plugin.settings.resultCount,
       });

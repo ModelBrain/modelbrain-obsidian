@@ -15,7 +15,7 @@ It never changes, creates or deletes a note.
 
 ## Requirements
 
-- Obsidian on macOS, Windows or Linux. Desktop only: there is no phone or tablet support, because the plugin talks to a program on your computer.
+- Obsidian 1.13 or later on macOS, Windows or Linux. Desktop only: there is no phone or tablet support, because the plugin talks to a program on your computer.
 - The ModelBrain desktop app, installed and started once. [Download it here](https://modelbrain.net/get-it.html).
 
 ## First run
@@ -29,7 +29,7 @@ It never changes, creates or deletes a note.
 
 ModelBrain only reads a folder that you have chosen yourself, in its own menu or in a terminal. That is a deliberate safety rule, and this plugin does not get around it.
 
-- macOS and Windows: open the ModelBrain menu, choose **Add Vault**, and pick this vault's folder. The settings tab has a button that copies the folder path.
+- macOS and Windows: open the ModelBrain menu, choose **Add Vault**, and pick this vault's folder. The plugin's settings tab shows the folder path to pick.
 - Linux: run `connector_sync register notes /path/to/vault` in a terminal.
 
 The first pass over a large vault takes a while. After that only changed notes are read again. See the [Obsidian guide](https://modelbrain.net/docs/obsidian.html) for what is read and what is skipped.
@@ -41,6 +41,7 @@ Obsidian asks plugins to state these plainly.
 - **Programs outside the vault.** The plugin starts two helper programs that the ModelBrain app installed: `mcp_server`, which passes requests to ModelBrain, and `connector_sync list`, which reads the list of folders ModelBrain is connected to. It needs these because ModelBrain is a separate app. It does not read or write any other file outside your vault.
 - **Network.** The plugin makes no network requests. It talks to ModelBrain on the same computer through that helper program.
 - **What it sends to ModelBrain.** The text you type into the search box; the text you select when you run "Remember selection", with the note's path; and, for related memories, the note's title and about its first 400 characters.
+- **Clipboard.** Not used.
 - **Telemetry.** None.
 - **Account and payment.** None needed. ModelBrain sells optional sync between computers and team sharing. This plugin does not use or need either.
 - **Source.** This plugin is open source under the MIT licence. The ModelBrain app it talks to is closed source.
@@ -68,6 +69,8 @@ npx eslint .
 ```
 
 To try a build, copy `main.js`, `manifest.json` and `styles.css` into `<vault>/.obsidian/plugins/modelbrain/` and enable the plugin.
+
+Releases are built by GitHub Actions when a version tag is pushed. The workflow builds from this source, runs the tests, records a build attestation for `main.js`, `manifest.json` and `styles.css`, and attaches them to the release.
 
 ## Licence
 

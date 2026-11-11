@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting, SettingDefinitionItem } from "obsidian";
 import type ModelBrainPlugin from "./main";
 
 export interface ModelBrainSettings {
@@ -18,13 +18,11 @@ interface PingAnswer {
 }
 
 export class ModelBrainSettingTab extends PluginSettingTab {
-  // What the last check found. display() only ever draws from these, and
-  // never starts work on its own once a check has run: Obsidian may call
-  // display() again whenever the tab's content changes, so a display() that
-  // changed its own content later would be drawn in a loop.
+  // What the last check found. Rows are only ever drawn from these values.
+  // A check runs once when the tab is shown, stores its results, and then
+  // asks Obsidian to draw the tab again.
   private statusText: string | null = null;
   private vaultText: string | null = null;
-  private vaultConnected = true;
   private checking = false;
 
   constructor(app: App, private readonly plugin: ModelBrainPlugin) {
@@ -35,76 +33,76 @@ export class ModelBrainSettingTab extends PluginSettingTab {
     // Check afresh the next time the tab is opened.
     this.statusText = null;
     this.vaultText = null;
+    super.hide();
   }
 
-  display(): void {
-    const { containerEl } = this;
-    containerEl.empty();
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    return [
+      {
+        name: "Status",
+        searchable: false,
+        render: (setting: Setting) => {
+          setting.setDesc(this.statusText ?? "Checking…");
+          setting.addButton((btn) =>
+            btn
+              .setButtonText("Check again")
+              .setDisabled(this.checking)
+              .onClick(() => void this.check())
+          );
+          // Only start a check when the row is really on screen. Obsidian also
+          // reads these definitions at startup to index them for search, and
+          // that must not start ModelBrain's helper.
+          if (this.statusText === null && !this.checking) void this.check();
+        },
+      },
+      {
+        name: "This vault",
+        searchable: false,
+        render: (setting: Setting) => {
+          setting.setDesc(this.vaultText ?? "Checking…");
+        },
+      },
+      {
+        name: "Results per search",
+        desc: "How many results the search panel asks for.",
+        control: { type: "slider", key: "resultCount", min: 5, max: 30, step: 1, defaultValue: DEFAULT_SETTINGS.resultCount },
+      },
+      {
+        name: "Install folder",
+        desc: "Leave empty unless ModelBrain is installed somewhere unusual. This is the folder that holds its helper programs.",
+        control: { type: "text", key: "installDir", placeholder: "Found automatically", defaultValue: "" },
+      },
+    ];
+  }
 
-    new Setting(containerEl)
-      .setName("Status")
-      .setDesc(this.statusText ?? "Checking\u2026")
-      .addButton((btn) =>
-        btn
-          .setButtonText("Check again")
-          .setDisabled(this.checking)
-          .onClick(() => void this.check())
-      );
+  getControlValue(key: string): unknown {
+    return this.plugin.settings[key as keyof ModelBrainSettings];
+  }
 
-    const vault = new Setting(containerEl).setName("This vault").setDesc(this.vaultText ?? "Checking\u2026");
-    const vaultPath = this.plugin.vaultPath();
-    if (this.vaultText !== null && !this.vaultConnected && vaultPath) {
-      vault.addButton((btn) =>
-        btn.setButtonText("Copy vault folder").onClick(async () => {
-          await navigator.clipboard.writeText(vaultPath);
-          new Notice("Vault folder copied.");
-        })
-      );
+  async setControlValue(key: string, value: unknown): Promise<void> {
+    if (key === "resultCount" && typeof value === "number") {
+      this.plugin.settings.resultCount = value;
+    } else if (key === "installDir" && typeof value === "string") {
+      this.plugin.settings.installDir = value.trim();
+      this.plugin.resetClient();
+    } else {
+      return;
     }
-
-    new Setting(containerEl)
-      .setName("Results per search")
-      .setDesc("How many results the search panel asks for.")
-      .addSlider((slider) =>
-        slider
-          .setLimits(5, 30, 1)
-          .setValue(this.plugin.settings.resultCount)
-          .onChange(async (value) => {
-            this.plugin.settings.resultCount = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("Install folder")
-      .setDesc("Leave empty unless ModelBrain is installed somewhere unusual. This is the folder that holds its helper programs.")
-      .addText((text) =>
-        text
-          .setPlaceholder("Found automatically")
-          .setValue(this.plugin.settings.installDir)
-          .onChange(async (value) => {
-            this.plugin.settings.installDir = value.trim();
-            await this.plugin.saveSettings();
-            this.plugin.resetClient();
-          })
-      );
-
-    if (this.statusText === null && !this.checking) void this.check();
+    await this.plugin.saveSettings();
   }
 
-  /** Runs both checks once, then redraws the tab once with the results. */
+  /** Runs both checks once, then has Obsidian draw the tab again with the results. */
   private async check(): Promise<void> {
     if (this.checking) return;
     this.checking = true;
     try {
       const [status, vault] = await Promise.all([this.describeStatus(), this.describeVault()]);
       this.statusText = status;
-      this.vaultText = vault.text;
-      this.vaultConnected = vault.connected;
+      this.vaultText = vault;
     } finally {
       this.checking = false;
     }
-    this.display();
+    this.update();
   }
 
   private async describeStatus(): Promise<string> {
@@ -121,21 +119,19 @@ export class ModelBrainSettingTab extends PluginSettingTab {
     }
   }
 
-  private async describeVault(): Promise<{ text: string; connected: boolean }> {
-    if (!this.plugin.vaultPath()) {
-      return { text: "This vault is not a folder on this computer, so ModelBrain cannot read it.", connected: true };
-    }
+  private async describeVault(): Promise<string> {
+    const vaultPath = this.plugin.vaultPath();
+    if (!vaultPath) return "This vault is not a folder on this computer, so ModelBrain cannot read it.";
     const match = await this.plugin.vaultMatch(true);
     if (match) {
       const where = match.vaultInsideRoot ? `as part of the folder "${match.connector.id}"` : `as "${match.connector.id}"`;
       const paused = match.connector.paused ? " It is paused: resume it from the ModelBrain menu." : "";
-      return { text: `Your assistants can read this vault. ModelBrain has it ${where}.${paused}`, connected: true };
+      return `Your assistants can read this vault. ModelBrain has it ${where}.${paused}`;
     }
-    return {
-      text:
-        "Not connected yet. ModelBrain only adds a folder when you choose it yourself, so this plugin cannot do it for you. " +
-        "Open the ModelBrain menu, choose Add Vault, and pick this vault's folder. On Linux, run: connector_sync register <name> <folder> in a terminal.",
-      connected: false,
-    };
+    return (
+      "Not connected yet. ModelBrain only adds a folder when you choose it yourself, so this plugin cannot do it for you. " +
+      `Open the ModelBrain menu, choose Add Vault, and pick this folder: ${vaultPath} ` +
+      "On Linux, run connector_sync register with a name and that folder in a terminal."
+    );
   }
 }

@@ -1,8 +1,8 @@
 {
   "id": "modelbrain",
   "name": "ModelBrain",
-  "version": "0.1.0",
-  "minAppVersion": "1.5.0",
+  "version": "0.1.1",
+  "minAppVersion": "1.13.0",
   "description": "Let Claude, ChatGPT and Cursor answer from this vault and remember what you tell them, with the index kept on your computer. Requires the free ModelBrain desktop app. Does not change your notes.",
   "author": "ModelBrain",
   "authorUrl": "https://modelbrain.net",

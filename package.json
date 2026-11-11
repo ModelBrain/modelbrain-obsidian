@@ -1,6 +1,6 @@
 {
   "name": "modelbrain-obsidian",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "ModelBrain plugin for Obsidian: search your vault and saved memories, and save selections as memories, through the ModelBrain desktop app.",
   "private": true,
   "license": "MIT",

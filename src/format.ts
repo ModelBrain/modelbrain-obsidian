@@ -60,9 +60,18 @@ export function vaultPathForHit(
   if (!match || hit.source !== "connector" || !hit.source_uri) return null;
   if (hit.connector_id !== match.connector.id) return null;
   const uri = hit.source_uri.replace(/\\/g, "/");
+  if (isStructureEntry(uri)) return null;
   if (!match.vaultInsideRoot) return uri;
   const prefix = match.vaultInsideRoot + "/";
   return uri.startsWith(prefix) ? uri.slice(prefix.length) : null;
+}
+
+/**
+ * ModelBrain keeps a generated listing of each connected folder. It is not a
+ * note, so it is left out of results.
+ */
+export function isStructureEntry(sourceUri: string | undefined): boolean {
+  return Boolean(sourceUri && /(^|\/)__[^/]*__$/.test(sourceUri.replace(/\\/g, "/")));
 }
 
 export function snippet(text: string, max = 280): string {

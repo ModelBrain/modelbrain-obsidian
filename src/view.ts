@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
 import type ModelBrainPlugin from "./main";
-import { snippet, vaultPathForHit } from "./format";
+import { isStructureEntry, snippet, vaultPathForHit } from "./format";
 
 export const VIEW_TYPE = "modelbrain-search";
 const DOWNLOAD_URL = "https://modelbrain.net/get-it.html";
@@ -134,6 +134,7 @@ export class SearchView extends ItemView {
     const match = await this.plugin.vaultMatch();
     const scope = this.scopeEl.value;
     const hits = (answer.hits ?? []).filter((hit) => {
+      if (isStructureEntry(hit.source_uri)) return false;
       const inVault = vaultPathForHit(hit, match) !== null;
       if (scope === "vault") return inVault;
       if (scope === "memories") return hit.source !== "connector";

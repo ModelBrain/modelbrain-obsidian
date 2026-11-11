@@ -1,5 +1,5 @@
 .modelbrain-view {
-  padding: var(--size-4-3);
+  padding: var(--size-4-3) var(--size-4-3) var(--size-4-12);
 }
 .modelbrain-form {
   display: flex;

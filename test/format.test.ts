@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { matchVault, memoryText, parseConnectorList, relatedQuery, snippet, vaultPathForHit } from "../src/format";
+import { isStructureEntry, matchVault, memoryText, parseConnectorList, relatedQuery, snippet, vaultPathForHit } from "../src/format";
 import { helperFileName, installDirs } from "../src/paths";
 
 const listOutput = [
@@ -57,6 +57,16 @@ test("maps hits to vault paths", () => {
   assert.equal(vaultPathForHit({ source: "connector", connector_id: "docs", source_uri: "Vault/Daily/1.md" }, inside), "Daily/1.md");
   assert.equal(vaultPathForHit({ source: "connector", connector_id: "docs", source_uri: "Other/1.md" }, inside), null);
   assert.equal(vaultPathForHit({ source: "connector", connector_id: "docs", source_uri: "Vault\\Daily\\1.md" }, inside), "Daily/1.md");
+});
+
+test("the generated folder listing is not treated as a note", () => {
+  const same = matchVault(parseConnectorList(listOutput), "/Users/me/Documents/My Vault", false);
+  assert.equal(isStructureEntry("__connector_structure__"), true);
+  assert.equal(isStructureEntry("Sub/__connector_structure__"), true);
+  assert.equal(isStructureEntry("Projects/__init__.md"), false);
+  assert.equal(isStructureEntry("Notes/a.md"), false);
+  assert.equal(isStructureEntry(undefined), false);
+  assert.equal(vaultPathForHit({ source: "connector", connector_id: "notes", source_uri: "__connector_structure__" }, same), null);
 });
 
 test("text helpers", () => {
